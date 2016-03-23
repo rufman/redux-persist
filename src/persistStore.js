@@ -62,6 +62,7 @@ export default function persistStore (store, config = {}, onComplete) {
       timeIterator = setInterval(() => {
         if (storesToProcess.length === 0) {
           clearInterval(timeIterator)
+          timeIterator = null
           return
         }
 
