@@ -12,6 +12,7 @@ export default function persistStore (store, config = {}, onComplete) {
   const serialize = config.serialize || defaultSerialize
   const deserialize = config.deserialize || defaultDeserialize
   const transforms = config.transforms || []
+  const stateTransforms = config.stateTransforms || []
   const storage = config.storage || createAsyncLocalStorage('local')
   const debounce = config.debounce || false
   const shouldRestore = !config.skipRestore
@@ -42,11 +43,12 @@ export default function persistStore (store, config = {}, onComplete) {
   store.subscribe(() => {
     if (timeIterator !== null) clearInterval(timeIterator)
 
-    let state = store.getState()
+    let state = stateTransforms.reduce(
+      (unprocessedState, transformer) => transformer(unprocessedState), store.getState())
     forEach(state, (subState, key) => {
       if (whitelistBlacklistCheck(key)) return
       if (lastState[key] === state[key]) return
-      if (storesToProcess.indexOf(key) !== -1) return
+
       storesToProcess.push(key)
     })
 

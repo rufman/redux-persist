@@ -4,7 +4,7 @@ import { REHYDRATE } from './constants'
 
 module.exports = function autoRehydrate (config = {}) {
   return (next) => (reducer, initialState, enhancer) => {
-    const rehydrationReducer = createRehydrationReducer(reducer)
+    const rehydrationReducer = createRehydrationReducer(reducer, config.stateSetter)
 
     // buffer actions
     const store = next(rehydrationReducer, initialState, enhancer)
@@ -21,25 +21,25 @@ module.exports = function autoRehydrate (config = {}) {
     if (config.log) console.log('redux-persist/autoRehydrate action buffer released', queue)
   }
 
-  function createRehydrationReducer (reducer) {
+  function createRehydrationReducer (reducer, stateSetter) {
     return (state, action) => {
       if (action.type !== REHYDRATE) return reducer(state, action)
       else {
         let inboundState = action.payload
         let reducedState = reducer(state, action)
-        let newState = {...reducedState}
+        let newState = stateSetter ? reducedState : {...reducedState}
 
         Object.keys(inboundState).forEach((key) => {
           // if reducer modifies substate, skip auto rehydration
           if (state[key] !== reducedState[key]) {
             if (config.log) console.log('redux-persist/autoRehydrate sub state for key "%s" modified, skipping autoRehydrate', key)
-            newState[key] = reducedState[key]
+            stateSetter ? stateSetter(newState, key, reducedState[key]) : newState[key] = reducedState[key]
             return
           }
 
           // otherwise take the inboundState
           if (checkIfPlain(inboundState[key], reducedState[key])) newState[key] = {...state[key], ...inboundState[key]} // shallow merge
-          else newState[key] = inboundState[key] // hard set
+          else stateSetter ? newState = stateSetter(newState, key, inboundState[key]) : newState[key] = inboundState[key] // hard set
 
           if (config.log) console.log('redux-persist/autoRehydrate key: %s, rehydrated to:', key, newState[key])
         })
